@@ -6,7 +6,7 @@ import {
   query,
 } from "./_generated/server";
 import { roles } from "./schema";
-import { hasAccessToOrg } from "./files";
+import { hasAccessToOrg } from "./files"; // Importing the hasAccessToOrg function
 
 export async function getUser(
   ctx: QueryCtx | MutationCtx,
@@ -14,8 +14,8 @@ export async function getUser(
 ) {
   const user = await ctx.db
     .query("users")
-    .withIndex("by_tokenIdentifier", (q) =>
-      q.eq("tokenIdentifier", tokenIdentifier)
+    .withIndex("https://liberal-tetra-73.clerk.accounts.dev", (q) =>
+      q.eq("https://liberal-tetra-73.clerk.accounts.dev", tokenIdentifier)
     )
     .first();
 
@@ -43,8 +43,8 @@ export const updateUser = internalMutation({
   async handler(ctx, args) {
     const user = await ctx.db
       .query("users")
-      .withIndex("by_tokenIdentifier", (q) =>
-        q.eq("tokenIdentifier", args.tokenIdentifier)
+      .withIndex("https://liberal-tetra-73.clerk.accounts.dev", (q) =>
+        q.eq("https://liberal-tetra-73.clerk.accounts.dev", args.tokenIdentifier)
       )
       .first();
 
@@ -62,6 +62,12 @@ export const updateUser = internalMutation({
 export const addOrgIdToUser = internalMutation({
   args: { tokenIdentifier: v.string(), orgId: v.string(), role: roles },
   async handler(ctx, args) {
+    // Ensure the user has access to the organization
+    const hasAccess = await hasAccessToOrg(ctx, args.orgId);
+    if (!hasAccess) {
+      throw new ConvexError("User does not have access to this organization");
+    }
+
     const user = await getUser(ctx, args.tokenIdentifier);
 
     await ctx.db.patch(user._id, {
@@ -73,6 +79,12 @@ export const addOrgIdToUser = internalMutation({
 export const updateRoleInOrgForUser = internalMutation({
   args: { tokenIdentifier: v.string(), orgId: v.string(), role: roles },
   async handler(ctx, args) {
+    // Ensure the user has access to the organization
+    const hasAccess = await hasAccessToOrg(ctx, args.orgId);
+    if (!hasAccess) {
+      throw new ConvexError("User does not have access to this organization");
+    }
+
     const user = await getUser(ctx, args.tokenIdentifier);
 
     const org = user.orgIds.find((org) => org.orgId === args.orgId);
